@@ -4,58 +4,114 @@ import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import java.io.InputStream;
+import java.sql.*;
+import java.time.LocalDateTime;
+import java.util.Properties;
 
 import static org.quartz.JobBuilder.*;
 import static org.quartz.TriggerBuilder.*;
 import static org.quartz.SimpleScheduleBuilder.*;
 
-public class AlertRabbit {
-    private Map<String, String> properties;
+public class AlertRabbit implements AutoCloseable {
+    private Properties config;
+    private static final String TABLE_NAME = "rabbit";
+    private Connection cn;
+    private boolean tableExists;
 
     public AlertRabbit() {
-        readProperties();
+        init();
+        checkTable();
+        if (!tableExists) {
+            createTable();
+        }
     }
 
-    private List<String> validate() {
-        List<String> lines = new ArrayList<>();
-        try {
-            lines = Files.readAllLines(Path.of("./src/main/resources/rabbit.properties"));
-
-        } catch (IOException e) {
+    private void init() {
+        try (InputStream in = AlertRabbit.class.getClassLoader()
+                .getResourceAsStream("rabbit.properties")) {
+            config = new Properties();
+            config.load(in);
+            Class.forName(config.getProperty("driver-class-name"));
+            cn = DriverManager.getConnection(
+                    config.getProperty("url"),
+                    config.getProperty("username"),
+                    config.getProperty("password")
+            );
+        } catch (IOException | ClassNotFoundException | SQLException e) {
             e.printStackTrace();
         }
-        for (String line : lines) {
-            if (!Pattern.matches("rabbit\\..+=.+", line)) {
-                throw new IllegalArgumentException("Check your properties file. Only key=value pattern is admissible.");
-            }
-        }
-        return lines;
     }
 
-    private void readProperties() {
-        properties = validate().stream()
-                .map(x -> x.split("="))
-                .filter(x -> x.length == 2)
-                .collect(Collectors.toMap(x -> x[0], x -> x[1]));
+    private void checkTable() {
+        try (Statement st = cn.createStatement()) {
+            String sql = String.format("select exists (select 1 from information_schema.columns "
+                            + "where table_name = '%s' and "
+                            + "(column_name = '%s' or column_name = '%s'));",
+                    TABLE_NAME,
+                    "id",
+                    "created_date");
+            try (ResultSet rs = st.executeQuery(sql)) {
+                if (rs.next()) {
+                    tableExists = rs.getBoolean(1);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void createTable() {
+        try (Statement st = cn.createStatement()) {
+            String sql = String.format("create table if not exists %s(%s, %s);",
+                    TABLE_NAME,
+                    "id serial primary key",
+                    "created_date timestamp");
+            tableExists = st.executeUpdate(sql) == 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public Connection getConnection() {
+        return cn;
     }
 
     public int getProperty(String key) {
-        return Integer.parseInt(properties.get(key));
+        return Integer.parseInt(config.getProperty(key));
+    }
+
+    public void readStore() {
+        String sql = String.format("select * from %s;", TABLE_NAME);
+        try (Statement st = cn.createStatement()) {
+            try (ResultSet rs = st.executeQuery(sql)) {
+                while (rs.next()) {
+                    System.out.printf("id = %d, created_date = %tT%n",
+                            rs.getInt("id"),
+                            rs.getTimestamp("created_date").toLocalDateTime());
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (cn != null) {
+            cn.close();
+        }
     }
 
     public static void main(String[] args) {
-        AlertRabbit app = new AlertRabbit();
-        try {
+        try (AlertRabbit app = new AlertRabbit()) {
             Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
             scheduler.start();
-            JobDetail job = newJob(Rabbit.class).build();
+            JobDataMap data = new JobDataMap();
+            data.put("connection", app.getConnection());
+            JobDetail job = newJob(Rabbit.class)
+                    .usingJobData(data)
+                    .build();
             SimpleScheduleBuilder times = simpleSchedule()
                     .withIntervalInSeconds(app.getProperty("rabbit.interval"))
                     .repeatForever();
@@ -64,15 +120,30 @@ public class AlertRabbit {
                     .withSchedule(times)
                     .build();
             scheduler.scheduleJob(job, trigger);
-        } catch (SchedulerException se) {
-            se.printStackTrace();
+            Thread.sleep(10000);
+            scheduler.shutdown();
+            app.readStore();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     public static class Rabbit implements Job {
+        public Rabbit() {
+            System.out.println(hashCode());
+        }
+
         @Override
         public void execute(JobExecutionContext context) throws JobExecutionException {
             System.out.println("Rabbit runs here ...");
+            Connection cn = (Connection) context.getJobDetail().getJobDataMap().get("connection");
+            String sql = String.format("insert into %s(created_date) values (?);", TABLE_NAME);
+            try (PreparedStatement ps = cn.prepareStatement(sql)) {
+                ps.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
+                ps.execute();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
