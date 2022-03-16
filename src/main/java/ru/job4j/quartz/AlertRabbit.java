@@ -77,7 +77,7 @@ public class AlertRabbit implements AutoCloseable {
         return cn;
     }
 
-    public int getProperty(String key) {
+    public int getIntProperty(String key) {
         return Integer.parseInt(config.getProperty(key));
     }
 
@@ -113,7 +113,7 @@ public class AlertRabbit implements AutoCloseable {
                     .usingJobData(data)
                     .build();
             SimpleScheduleBuilder times = simpleSchedule()
-                    .withIntervalInSeconds(app.getProperty("rabbit.interval"))
+                    .withIntervalInSeconds(app.getIntProperty("rabbit.interval"))
                     .repeatForever();
             Trigger trigger = newTrigger()
                     .startNow()
