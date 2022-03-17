@@ -12,7 +12,7 @@ public class SqlRuParse {
         for (Element td : row) {
             Element href = td.child(0);
             Element date = td.child(1).child(0);
-            System.out.println(href.attr("href"));
+            System.out.println(href.absUrl("href"));
             System.out.println(href.text());
             System.out.println(date.text());
             System.out.printf("%s%n", "=".repeat(50));
