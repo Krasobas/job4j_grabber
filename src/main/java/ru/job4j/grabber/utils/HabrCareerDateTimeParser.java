@@ -5,7 +5,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
-public class HarbCareerDateTimeParser implements DateTimeParser {
+public class HabrCareerDateTimeParser implements DateTimeParser {
 
     @Override
     public LocalDateTime parse(String parse) throws ParseException {

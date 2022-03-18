@@ -6,7 +6,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import ru.job4j.grabber.utils.DateTimeParser;
-import ru.job4j.grabber.utils.HarbCareerDateTimeParser;
+import ru.job4j.grabber.utils.HabrCareerDateTimeParser;
 
 import java.io.IOException;
 import java.text.ParseException;
@@ -18,7 +18,7 @@ import java.util.StringJoiner;
 public class HabrCareerParse implements Parse {
     private static final String SOURCE_LINK = "https://career.habr.com";
     private static final String PAGE_LINK = String.format("%s/vacancies/java_developer", SOURCE_LINK);
-    private static final int MAX_PAGE_NUMBER = 5;
+    private static final int MAX_PAGE_NUMBER = 1;
     private final DateTimeParser dateTimeParser;
 
     public HabrCareerParse(DateTimeParser dateTimeParser) {
@@ -77,7 +77,7 @@ public class HabrCareerParse implements Parse {
     }
 
     public static void main(String[] args) throws IOException {
-        HabrCareerParse app = new HabrCareerParse(new HarbCareerDateTimeParser());
+        HabrCareerParse app = new HabrCareerParse(new HabrCareerDateTimeParser());
         System.out.println(app.list(PAGE_LINK));
     }
 }

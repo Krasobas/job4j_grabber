@@ -77,7 +77,8 @@ public class PsqlStore implements Store, AutoCloseable {
         if (!tableExists) {
             createTable();
         }
-        String sql = String.format("insert into %s(name, text, link, created) values(?, ?, ?, ?);", TABLE);
+        String sql = String.format("insert into %s(name, text, link, created) "
+                + "values(?, ?, ?, ?) on conflict do nothing;", TABLE);
         try (PreparedStatement pst = cn.prepareStatement(sql)) {
             pst.setString(1, post.getTitle());
             pst.setString(2, post.getDescription());
@@ -124,6 +125,25 @@ public class PsqlStore implements Store, AutoCloseable {
             e.printStackTrace();
         }
         return rsl;
+    }
+
+    @Override
+    public void readStore() {
+        String sql = String.format("select * from %s;", TABLE);
+        try (Statement st = cn.createStatement()) {
+            try (ResultSet rs = st.executeQuery(sql)) {
+                while (rs.next()) {
+                    System.out.printf("id = %d, title = %s,%n%n%s%n%ncreated_date = %tT%n%s%n",
+                            rs.getInt("id"),
+                            rs.getString("name"),
+                            rs.getString("text"),
+                            rs.getTimestamp("created").toLocalDateTime(),
+                            "=".repeat(50));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
