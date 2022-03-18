@@ -2,19 +2,22 @@ package ru.job4j.grabber;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.*;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 public class PsqlStore implements Store, AutoCloseable {
-    private static final String TABLE = "post";
     private Connection cn;
     private boolean tableExists;
 
     public PsqlStore() {
         init();
         checkTable();
+        System.out.println(tableExists);
     }
 
     private void init() {
@@ -35,31 +38,30 @@ public class PsqlStore implements Store, AutoCloseable {
 
     private void checkTable() {
         try (Statement st = cn.createStatement()) {
-            String sql = String.format("select exists (select 1 from information_schema.columns"
-                    + "where table_name = '%s'", TABLE);
+            String sql = readScript(Path.of("./db/scripts/checkTable.sql"));
             try (ResultSet rs = st.executeQuery(sql)) {
                 if (rs.next()) {
                     tableExists = rs.getBoolean(1);
                 }
             }
-        } catch (SQLException e) {
+        } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
     }
 
     private void createTable() {
         try (Statement st = cn.createStatement()) {
-            String sql = String.format("create table if not exists %s (%s, %s, %s, %s, %s);",
-                    TABLE,
-                    "id serial primary key",
-                    "name varchar(255)",
-                    "text text",
-                    "link varchar(255) unique",
-                    "created timestamp");
+            String sql = readScript(Path.of("./db/scripts/createTable.sql"));
             tableExists = st.executeUpdate(sql) == 0;
-        } catch (SQLException e) {
+        } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private String readScript(Path path) throws IOException {
+        return Files.newBufferedReader(path)
+                .lines()
+                .collect(Collectors.joining());
     }
 
     @Override
@@ -91,5 +93,9 @@ public class PsqlStore implements Store, AutoCloseable {
             cn.close();
         }
 
+    }
+
+    public static void main(String[] args) {
+        new PsqlStore();
     }
 }
