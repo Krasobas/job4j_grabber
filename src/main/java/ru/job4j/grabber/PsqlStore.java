@@ -129,20 +129,22 @@ public class PsqlStore implements Store, AutoCloseable {
 
     @Override
     public void readStore() {
-        String sql = String.format("select * from %s;", TABLE);
-        try (Statement st = cn.createStatement()) {
-            try (ResultSet rs = st.executeQuery(sql)) {
-                while (rs.next()) {
-                    System.out.printf("id = %d, title = %s,%n%n%s%n%ncreated_date = %tT%n%s%n",
-                            rs.getInt("id"),
-                            rs.getString("name"),
-                            rs.getString("text"),
-                            rs.getTimestamp("created").toLocalDateTime(),
-                            "=".repeat(50));
+        if (tableExists) {
+            String sql = String.format("select * from %s;", TABLE);
+            try (Statement st = cn.createStatement()) {
+                try (ResultSet rs = st.executeQuery(sql)) {
+                    while (rs.next()) {
+                        System.out.printf("id = %d, title = %s,%n%n%s%n%ncreated_date = %tT%n%s%n",
+                                rs.getInt("id"),
+                                rs.getString("name"),
+                                rs.getString("text"),
+                                rs.getTimestamp("created").toLocalDateTime(),
+                                "=".repeat(50));
+                    }
                 }
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
     }
 
