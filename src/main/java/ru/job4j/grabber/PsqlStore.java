@@ -5,33 +5,32 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
 public class PsqlStore implements Store, AutoCloseable {
+    private static final String TABLE = "post";
     private Connection cn;
     private boolean tableExists;
 
-    public PsqlStore() {
-        init();
+    public PsqlStore(Properties cfg) {
+        init(cfg);
         checkTable();
-        System.out.println(tableExists);
     }
 
-    private void init() {
-        try (InputStream in = PsqlStore.class.getClassLoader()
-                .getResourceAsStream("rabbit.properties")) {
-            Properties config = new Properties();
-            config.load(in);
-            Class.forName(config.getProperty("driver-class-name"));
+    private void init(Properties cfg) {
+        try {
+            Class.forName(cfg.getProperty("driver-class-name"));
             cn = DriverManager.getConnection(
-                    config.getProperty("url"),
-                    config.getProperty("username"),
-                    config.getProperty("password")
+                    cfg.getProperty("url"),
+                    cfg.getProperty("username"),
+                    cfg.getProperty("password")
             );
-        } catch (IOException | ClassNotFoundException | SQLException e) {
+        } catch (ClassNotFoundException | SQLException e) {
             e.printStackTrace();
         }
     }
@@ -58,6 +57,15 @@ public class PsqlStore implements Store, AutoCloseable {
         }
     }
 
+    private Post createPost(ResultSet rs) throws SQLException {
+        return new Post(
+                rs.getInt("id"),
+                rs.getString("name"),
+                rs.getString("link"),
+                rs.getString("text"),
+                rs.getTimestamp("created").toLocalDateTime());
+    }
+
     private String readScript(Path path) throws IOException {
         return Files.newBufferedReader(path)
                 .lines()
@@ -69,6 +77,16 @@ public class PsqlStore implements Store, AutoCloseable {
         if (!tableExists) {
             createTable();
         }
+        String sql = String.format("insert into %s(name, text, link, created) values(?, ?, ?, ?);", TABLE);
+        try (PreparedStatement pst = cn.prepareStatement(sql)) {
+            pst.setString(1, post.getTitle());
+            pst.setString(2, post.getDescription());
+            pst.setString(3, post.getLink());
+            pst.setTimestamp(4, Timestamp.valueOf(post.getCreated()));
+            pst.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -76,7 +94,17 @@ public class PsqlStore implements Store, AutoCloseable {
         if (!tableExists) {
             return Collections.emptyList();
         }
-        return null;
+        List<Post> rsl = new ArrayList<>();
+        try (Statement st = cn.createStatement()) {
+            String sql = String.format("select * from %s;", TABLE);
+            ResultSet rs = st.executeQuery(sql);
+            while (rs.next()) {
+                rsl.add(createPost(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return rsl;
     }
 
     @Override
@@ -84,7 +112,18 @@ public class PsqlStore implements Store, AutoCloseable {
         if (!tableExists) {
             return null;
         }
-        return null;
+        Post rsl = null;
+        try (Statement st = cn.createStatement()) {
+            String sql = String.format("select * from %s where id = %d;", TABLE, id);
+            try (ResultSet rs = st.executeQuery(sql)) {
+                if (rs.next()) {
+                    rsl = createPost(rs);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return rsl;
     }
 
     @Override
@@ -96,6 +135,17 @@ public class PsqlStore implements Store, AutoCloseable {
     }
 
     public static void main(String[] args) {
-        new PsqlStore();
+        try (InputStream in = PsqlStore.class.getClassLoader()
+                .getResourceAsStream("rabbit.properties")) {
+            Properties config = new Properties();
+            config.load(in);
+            try (PsqlStore app =  new PsqlStore(config)) {
+                app.save(new Post("title", "link4", "description", LocalDateTime.now()));
+                app.getAll().forEach(System.out::println);
+                System.out.println(app.findById(1));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
