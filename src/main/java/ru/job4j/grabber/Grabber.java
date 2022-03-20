@@ -8,7 +8,6 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
 import static org.quartz.JobBuilder.newJob;
@@ -81,12 +80,8 @@ public class Grabber implements Grab {
             JobDataMap map = context.getJobDetail().getJobDataMap();
             Store store = (Store) map.get("store");
             Parse parse = (Parse) map.get("parse");
-            try {
-                parse.list("https://career.habr.com/vacancies/java_developer")
-                        .forEach(store::save);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            parse.list("https://career.habr.com/vacancies/java_developer")
+                    .forEach(store::save);
         }
     }
 
