@@ -74,8 +74,11 @@ public class Post {
                 + "id=" + id
                 + ", title='" + title + '\''
                 + ", link='" + link + '\''
+                + System.lineSeparator()
                 + ", description='" + description + '\''
-                + ", created=" + created + '}';
+                + System.lineSeparator()
+                + ", created=" + created + '}'
+                + System.lineSeparator();
     }
 
     @Override
