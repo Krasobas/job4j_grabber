@@ -37,22 +37,29 @@ public class PsqlStore implements Store, AutoCloseable {
 
     private void checkTable() {
         try (Statement st = cn.createStatement()) {
-            String sql = readScript(Path.of("./db/scripts/checkTable.sql"));
+            String sql = String.format("select exists (select 1 from information_schema.columns"
+                    + "where table_name = '%s'", TABLE);
             try (ResultSet rs = st.executeQuery(sql)) {
                 if (rs.next()) {
                     tableExists = rs.getBoolean(1);
                 }
             }
-        } catch (SQLException | IOException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
     private void createTable() {
         try (Statement st = cn.createStatement()) {
-            String sql = readScript(Path.of("./db/scripts/createTable.sql"));
+            String sql = String.format("create table if not exists %s (%s, %s, %s, %s, %s);",
+                    TABLE,
+                    "id serial primary key",
+                    "name varchar(255)",
+                    "text text",
+                    "link varchar(255) unique",
+                    "created timestamp");
             tableExists = st.executeUpdate(sql) == 0;
-        } catch (SQLException | IOException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
     }
