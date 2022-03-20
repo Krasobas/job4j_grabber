@@ -38,7 +38,7 @@ public class PsqlStore implements Store, AutoCloseable {
     private void checkTable() {
         try (Statement st = cn.createStatement()) {
             String sql = String.format("select exists (select 1 from information_schema.columns"
-                    + "where table_name = '%s'", TABLE);
+                    + " where table_name = '%s');", TABLE);
             try (ResultSet rs = st.executeQuery(sql)) {
                 if (rs.next()) {
                     tableExists = rs.getBoolean(1);
@@ -103,11 +103,12 @@ public class PsqlStore implements Store, AutoCloseable {
             return Collections.emptyList();
         }
         List<Post> rsl = new ArrayList<>();
-        try (Statement st = cn.createStatement()) {
-            String sql = String.format("select * from %s;", TABLE);
-            ResultSet rs = st.executeQuery(sql);
-            while (rs.next()) {
-                rsl.add(createPost(rs));
+        String sql = String.format("select * from %s;", TABLE);
+        try (PreparedStatement pst = cn.prepareStatement(sql)) {
+            try (ResultSet rs = pst.executeQuery()) {
+                while (rs.next()) {
+                    rsl.add(createPost(rs));
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -121,9 +122,10 @@ public class PsqlStore implements Store, AutoCloseable {
             return null;
         }
         Post rsl = null;
-        try (Statement st = cn.createStatement()) {
-            String sql = String.format("select * from %s where id = %d;", TABLE, id);
-            try (ResultSet rs = st.executeQuery(sql)) {
+        String sql = String.format("select * from %s where id = ?;", TABLE);
+        try (PreparedStatement pst = cn.prepareStatement(sql)) {
+            pst.setInt(1, id);
+            try (ResultSet rs = pst.executeQuery()) {
                 if (rs.next()) {
                     rsl = createPost(rs);
                 }
@@ -165,11 +167,11 @@ public class PsqlStore implements Store, AutoCloseable {
 
     public static void main(String[] args) {
         try (InputStream in = PsqlStore.class.getClassLoader()
-                .getResourceAsStream("rabbit.properties")) {
+                .getResourceAsStream("app.properties")) {
             Properties config = new Properties();
             config.load(in);
             try (PsqlStore app =  new PsqlStore(config)) {
-                app.save(new Post("title", "link4", "description", LocalDateTime.now()));
+                app.save(new Post("title", "link2", "description", LocalDateTime.now()));
                 app.getAll().forEach(System.out::println);
                 System.out.println(app.findById(1));
             }
