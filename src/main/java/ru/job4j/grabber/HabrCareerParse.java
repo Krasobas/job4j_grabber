@@ -57,11 +57,8 @@ public class HabrCareerParse implements Parse {
     @Override
     public List<Post> list(String link) throws IOException {
         List<Post> rsl = new ArrayList<>();
-        StringBuilder url = new StringBuilder().append(link).append("?page=");
-        int start = link.length() + 6;
         for (int page = 1; page < MAX_PAGE_NUMBER + 1; page++) {
-            url.append(page);
-            Connection connection = Jsoup.connect(url.toString());
+            Connection connection = Jsoup.connect(String.format("%s?page=%d", link, page));
             Document document = connection.get();
             Elements rows = document.select(".vacancy-card__inner");
             rows.forEach(row -> {
@@ -71,7 +68,6 @@ public class HabrCareerParse implements Parse {
                     e.printStackTrace();
                 }
             });
-            url.delete(start, url.length());
         }
         return rsl;
     }
