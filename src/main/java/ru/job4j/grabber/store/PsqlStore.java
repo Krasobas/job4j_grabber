@@ -1,4 +1,6 @@
-package ru.job4j.grabber;
+package ru.job4j.grabber.store;
+
+import ru.job4j.grabber.model.Post;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,14 +13,22 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PsqlStore implements Store, AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger(PsqlStore.class.getName());
     private static final String TABLE = "post";
     private Connection cn;
     private boolean tableExists;
 
     public PsqlStore(Properties cfg) {
         init(cfg);
+        checkTable();
+    }
+
+    public PsqlStore(Connection cn) {
+        this.cn = cn;
         checkTable();
     }
 
@@ -31,7 +41,7 @@ public class PsqlStore implements Store, AutoCloseable {
                     cfg.getProperty("password")
             );
         } catch (ClassNotFoundException | SQLException e) {
-            e.printStackTrace();
+            LOG.error("Impossible to create Connection with Database.", e);
         }
     }
 
@@ -45,7 +55,7 @@ public class PsqlStore implements Store, AutoCloseable {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.error("Impossible to create SQL Statement or execute SQL query.", e);
         }
     }
 
@@ -60,7 +70,7 @@ public class PsqlStore implements Store, AutoCloseable {
                     "created timestamp");
             tableExists = st.executeUpdate(sql) == 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.error("Impossible to create SQL Statement or execute SQL query.", e);
         }
     }
 
@@ -73,10 +83,16 @@ public class PsqlStore implements Store, AutoCloseable {
                 rs.getTimestamp("created").toLocalDateTime());
     }
 
-    private String readScript(Path path) throws IOException {
-        return Files.newBufferedReader(path)
-                .lines()
-                .collect(Collectors.joining());
+    private String readScript(Path path) {
+        String rsl = "";
+        try {
+            rsl = Files.newBufferedReader(path)
+                    .lines()
+                    .collect(Collectors.joining());
+        } catch (IOException e) {
+            LOG.error("Impossible to read SQL script file.", e);
+        }
+        return rsl;
     }
 
     @Override
@@ -86,14 +102,19 @@ public class PsqlStore implements Store, AutoCloseable {
         }
         String sql = String.format("insert into %s(name, text, link, created) "
                 + "values(?, ?, ?, ?) on conflict do nothing;", TABLE);
-        try (PreparedStatement pst = cn.prepareStatement(sql)) {
+        try (PreparedStatement pst = cn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pst.setString(1, post.getTitle());
             pst.setString(2, post.getDescription());
             pst.setString(3, post.getLink());
             pst.setTimestamp(4, Timestamp.valueOf(post.getCreated()));
             pst.execute();
+            try (ResultSet generatedKey = pst.getGeneratedKeys()) {
+                if (generatedKey.next()) {
+                    post.setId(generatedKey.getInt(1));
+                }
+            }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.error("Impossible to create SQL Statement, execute SQL query or get generated key.", e);
         }
     }
 
@@ -111,7 +132,7 @@ public class PsqlStore implements Store, AutoCloseable {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.error("Impossible to create SQL Statement or execute SQL query.", e);
         }
         return rsl;
     }
@@ -131,7 +152,7 @@ public class PsqlStore implements Store, AutoCloseable {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.error("Impossible to create SQL Statement or execute SQL query.", e);
         }
         return rsl;
     }
@@ -152,7 +173,7 @@ public class PsqlStore implements Store, AutoCloseable {
                     }
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                LOG.error("Impossible to create SQL Statement or execute SQL query.", e);
             }
         }
     }
@@ -176,7 +197,7 @@ public class PsqlStore implements Store, AutoCloseable {
                 System.out.println(app.findById(1));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error("Impossible to read properties file.", e);
         }
     }
 }

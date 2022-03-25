@@ -1,10 +1,11 @@
-package ru.job4j.grabber;
+package ru.job4j.grabber.parse;
 
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import ru.job4j.grabber.model.Post;
 import ru.job4j.grabber.utils.DateTimeParser;
 import ru.job4j.grabber.utils.HabrCareerDateTimeParser;
 
@@ -15,7 +16,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class HabrCareerParse implements Parse {
+    private static final Logger LOG = LoggerFactory.getLogger(HabrCareerParse.class.getName());
     private static final String SOURCE_LINK = "https://career.habr.com";
     private static final String PAGE_LINK = String.format("%s/vacancies/java_developer", SOURCE_LINK);
     private static final int MAX_PAGE_NUMBER = 1;
@@ -24,25 +29,29 @@ public class HabrCareerParse implements Parse {
     public HabrCareerParse(DateTimeParser dateTimeParser) {
         this.dateTimeParser = dateTimeParser;
     }
-    private String retrieveDescription(String link) throws IOException {
+    private String retrieveDescription(String link) {
         StringJoiner rsl = new StringJoiner(System.lineSeparator());
         Connection connection = Jsoup.connect(link);
-        Document document = connection.get();
-        Elements rows = document.select(".job_show_description__vacancy_description");
-        rows.forEach(row -> {
-            Element descriptionElement = row.select(".style-ugc").first();
-            descriptionElement.children().forEach(child -> {
-                if ("ul".equals(child.tagName())) {
-                    child.children().forEach(li -> rsl.add("\t– " + li.text()));
-                } else {
-                    rsl.add(child.text());
-                }
+        try {
+            Document document = connection.get();
+            Elements rows = document.select(".job_show_description__vacancy_description");
+            rows.forEach(row -> {
+                Element descriptionElement = row.select(".style-ugc").first();
+                descriptionElement.children().forEach(child -> {
+                    if ("ul".equals(child.tagName())) {
+                        child.children().forEach(li -> rsl.add("\t– " + li.text()));
+                    } else {
+                        rsl.add(child.text());
+                    }
+                });
             });
-        });
+        } catch (IOException e) {
+            LOG.error("Impossible to get Document from Jsoup Connection.", e);
+        }
         return rsl.toString();
     }
 
-    private Post createPost(Element el) throws ParseException, IOException {
+    private Post createPost(Element el) throws ParseException {
         Element timeElement = el.select(".vacancy-card__date").first();
         String time = timeElement.child(0).attr("datetime");
         LocalDateTime created = dateTimeParser.parse(time);
@@ -65,12 +74,12 @@ public class HabrCareerParse implements Parse {
                 rows.forEach(row -> {
                     try {
                         rsl.add(createPost(row));
-                    } catch (ParseException | IOException e) {
+                    } catch (ParseException e) {
                         e.printStackTrace();
                     }
                 });
             } catch (IOException e) {
-                e.printStackTrace();
+                LOG.error("Impossible to get Document from Jsoup Connection.", e);
             }
         }
         return rsl;

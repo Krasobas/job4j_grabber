@@ -2,6 +2,11 @@ package ru.job4j.grabber;
 
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
+import ru.job4j.grabber.model.Post;
+import ru.job4j.grabber.parse.HabrCareerParse;
+import ru.job4j.grabber.parse.Parse;
+import ru.job4j.grabber.store.PsqlStore;
+import ru.job4j.grabber.store.Store;
 import ru.job4j.grabber.utils.HabrCareerDateTimeParser;
 
 import java.io.*;
@@ -10,11 +15,15 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Properties;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import static org.quartz.JobBuilder.newJob;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
 public class Grabber implements Grab {
+    private static final Logger LOG = LoggerFactory.getLogger(Grabber.class.getName());
     private final Properties cfg = new Properties();
 
     public Store store() {
@@ -27,10 +36,12 @@ public class Grabber implements Grab {
         return scheduler;
     }
 
-    public void cfg() throws IOException {
+    public void cfg() {
         try (InputStream in = PsqlStore.class.getClassLoader()
                 .getResourceAsStream("app.properties")) {
             cfg.load(in);
+        } catch (IOException e) {
+            LOG.error("Impossible to read properties file.", e);
         }
     }
 
@@ -46,11 +57,11 @@ public class Grabber implements Grab {
                             out.write(System.lineSeparator().getBytes());
                         }
                     } catch (IOException io) {
-                        io.printStackTrace();
+                        LOG.error("Impossible to get OutputStream from Socket.", io);
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                LOG.error("Impossible to crate ServerSocket.", e);
             }
         }).start();
     }

@@ -8,12 +8,15 @@ import java.io.InputStream;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.quartz.JobBuilder.*;
 import static org.quartz.TriggerBuilder.*;
 import static org.quartz.SimpleScheduleBuilder.*;
 
 public class AlertRabbit implements AutoCloseable {
+    private static final Logger LOG = LoggerFactory.getLogger(AlertRabbit.class.getName());
     private Properties config;
     private static final String TABLE_NAME = "rabbit";
     private Connection cn;
@@ -39,7 +42,7 @@ public class AlertRabbit implements AutoCloseable {
                     config.getProperty("password")
             );
         } catch (IOException | ClassNotFoundException | SQLException e) {
-            e.printStackTrace();
+            LOG.error("Impossible to create connection with database. Check your properties file.", e);
         }
     }
 
@@ -57,7 +60,7 @@ public class AlertRabbit implements AutoCloseable {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.error("Impossible to create SQL Statement or execute SQL query.", e);
         }
     }
 
@@ -69,7 +72,7 @@ public class AlertRabbit implements AutoCloseable {
                     "created_date timestamp");
             tableExists = st.executeUpdate(sql) == 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.error("Impossible to create SQL Statement or execute SQL query.", e);
         }
     }
 
@@ -92,7 +95,7 @@ public class AlertRabbit implements AutoCloseable {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.error("Impossible to create SQL Statement or execute SQL query.", e);
         }
     }
 
@@ -124,7 +127,7 @@ public class AlertRabbit implements AutoCloseable {
             scheduler.shutdown();
             app.readStore();
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.error("Check your main method.", e);
         }
     }
 
@@ -142,7 +145,7 @@ public class AlertRabbit implements AutoCloseable {
                 ps.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now()));
                 ps.execute();
             } catch (SQLException e) {
-                e.printStackTrace();
+                LOG.error("Impossible to create SQL Statement or execute SQL query.", e);
             }
         }
     }
