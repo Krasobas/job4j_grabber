@@ -11,13 +11,13 @@ The program reads all vacancies related to Java and writes them to the database.
 
 The interface is accessed via the REST API.
 
-###Extensions.
+### Extensions.
 
 1. New sites can be added to the project without changing the code.
 
 2. In the project, you can do parallel parsing of sites.
 
-###Used technologies:
+### Used technologies:
 
 - JSOUP for parsing
 - JDBC for manipulating with DB
