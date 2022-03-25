@@ -16,3 +16,10 @@ Extension.
 1. New sites can be added to the project without changing the code.
 
 2. In the project, you can do parallel parsing of sites.
+
+Used technologies:
+
+- JSOUP for parsing
+- JDBC for manipulating with DB
+- Quartz library for scheduling
+- Slf4j for logging
