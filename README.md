@@ -7,6 +7,7 @@
 
 This project represents a job search aggregator.
 
+---
 The system starts on schedule.
 The launch period is specified in the settings file - app.properties.
 
@@ -26,3 +27,5 @@ The interface is accessed via the REST API.
 - JDBC for manipulating with DB
 - Quartz library for scheduling
 - Slf4j for logging
+-----
+  ![img](./img/grabber.gif)

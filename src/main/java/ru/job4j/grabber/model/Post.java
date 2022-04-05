@@ -1,7 +1,9 @@
 package ru.job4j.grabber.model;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 public class Post {
     private int id;
@@ -66,6 +68,33 @@ public class Post {
 
     public void setCreated(LocalDateTime created) {
         this.created = created;
+    }
+
+    public String toHTML() {
+        StringJoiner html = new StringJoiner(System.lineSeparator());
+        html.add("</tr>");
+        html.add("<tr>");
+        html.add(String.format("<td><a href=\"%s\">%s</a></td>", this.getLink(), this.getTitle()));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm EEEE, d MMMM");
+        html.add(String.format("<td class=\"created\">%s</td>", this.getCreated().format(formatter)));
+        html.add("<td class=\"description\">");
+        boolean ul = false;
+        for (String line : this.getDescription().split(System.lineSeparator())) {
+            if (ul && !line.startsWith("\t– ")) {
+                html.add("</ul>");
+                ul = false;
+            }
+            if (line.startsWith("\t– ")) {
+                ul = true;
+                html.add(String.format("<li>%s</li>", line.replace("\t–", "")));
+            } else {
+                html.add(String.format("%s<br>", line));
+            }
+        }
+        html.add("</td>");
+
+        html.add("</tr>");
+        return html.toString();
     }
 
     @Override

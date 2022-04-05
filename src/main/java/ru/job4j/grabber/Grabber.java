@@ -12,7 +12,8 @@ import ru.job4j.grabber.utils.HabrCareerDateTimeParser;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Properties;
 
 import org.slf4j.Logger;
@@ -48,14 +49,18 @@ public class Grabber implements Grab {
     public void web(Store store) {
         new Thread(() -> {
             try (ServerSocket server = new ServerSocket(Integer.parseInt(cfg.getProperty("port")))) {
+                String html = Files.readString(Path.of("web/index.html"));
                 while (!server.isClosed()) {
                     Socket socket = server.accept();
                     try (OutputStream out = socket.getOutputStream()) {
                         out.write("HTTP/1.1 200 OK\r\n\r\n".getBytes());
+                        int tbody = html.indexOf("<tbody>") + 7;
+                        out.write(html.substring(0, tbody).getBytes());
                         for (Post post : store.getAll()) {
-                            out.write(post.toString().getBytes(Charset.forName("windows-1251")));
+                            out.write(post.toHTML().getBytes());
                             out.write(System.lineSeparator().getBytes());
                         }
+                        out.write(html.substring(tbody + 1).getBytes());
                     } catch (IOException io) {
                         LOG.error("Impossible to get OutputStream from Socket.", io);
                     }
