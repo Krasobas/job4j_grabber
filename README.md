@@ -28,4 +28,5 @@ The interface is accessed via the REST API.
 - Quartz library for scheduling
 - Slf4j for logging
 -----
+  ![img](./img/img.png)
   ![img](./img/grabber.gif)
